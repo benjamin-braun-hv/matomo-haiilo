@@ -5,63 +5,65 @@
     var matomoJsUrl = "https://cdn.matomo.cloud/" + matomoInstance + "/matomo.js";
     var matomoScriptId = "matomo-script";
 
-    // Initialize Matomo tracking
+    var lastTrackedUrl = location.href;
+
+    // Initialize Matomo tracking and track the initial page view
     function initializeMatomo() {
         var matomoQueue = window._paq = window._paq || [];
-        matomoQueue.push(['trackPageView']);
         matomoQueue.push(['enableLinkTracking']);
         matomoQueue.push(['setTrackerUrl', matomoPhpUrl]);
         matomoQueue.push(['setSiteId', '1']);
+        trackPageEvent(location.href);
     }
 
-    // Method to track page events
-    function trackPageEvent(pageUrl) {
+    // Method to track page views
+    function trackPageEvent(url) {
+        if (url === lastTrackedUrl) return;
+        lastTrackedUrl = url;
+
         var matomoQueue = window._paq = window._paq || [];
-        matomoQueue.push(['setCustomUrl', pageUrl]);
+        matomoQueue.push(['setCustomUrl', url]);
         matomoQueue.push(['trackPageView']);
+        console.log('[Matomo] Page view tracked:', url);
     }
 
     // Add the Matomo script to the page
     function addMatomoScript() {
-        // Check if the script is already added
-        if (document.getElementById(matomoScriptId)) {
-            return;
-        }
+        if (document.getElementById(matomoScriptId)) return;
 
-        var documentObject = document;
-        var scriptElement = documentObject.createElement('script');
-        scriptElement.type = 'text/javascript';
-        scriptElement.src = matomoJsUrl;
-        scriptElement.async = true;
-        scriptElement.id = matomoScriptId;
+        var script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = matomoJsUrl;
+        script.async = true;
+        script.id = matomoScriptId;
 
-        // Append the script just before the first script tag
-        var firstScript = documentObject.getElementsByTagName('script')[0];
-        firstScript.parentNode.insertBefore(scriptElement, firstScript);
+        var firstScript = document.getElementsByTagName('script')[0];
+        firstScript.parentNode.insertBefore(script, firstScript);
     }
 
-    // Override pushState and replaceState to track page changes
-    function overrideHistoryMethods() {
+    // Listen to history and browser navigation changes
+    function setupNavigationTracking() {
         var originalPushState = history.pushState;
         var originalReplaceState = history.replaceState;
 
-        history.pushState = function (state, title, url) {
-            if (typeof url === 'string') {
-                trackPageEvent(url);
-            }
-            return originalPushState.apply(this, arguments);
+        history.pushState = function () {
+            var result = originalPushState.apply(this, arguments);
+            trackPageEvent(location.href);
+            return result;
         };
 
-        history.replaceState = function (state, title, url) {
-            if (typeof url === 'string') {
-                trackPageEvent(url);
-            }
-            return originalReplaceState.apply(this, arguments);
+        history.replaceState = function () {
+            var result = originalReplaceState.apply(this, arguments);
+            trackPageEvent(location.href);
+            return result;
         };
+
+        window.addEventListener('popstate', function () {
+            trackPageEvent(location.href);
+        });
     }
 
-    // Initialize Matomo, add the script, and set up the listeners
     initializeMatomo();
     addMatomoScript();
-    overrideHistoryMethods();
+    setupNavigationTracking();
 })();
