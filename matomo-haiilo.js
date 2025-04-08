@@ -40,16 +40,28 @@
         firstScript.parentNode.insertBefore(scriptElement, firstScript);
     }
 
-    // Listener for popstate event to track page changes
-    function setupPopstateListener() {
-        window.addEventListener('popstate', function (event) {
-            var currentUrl = window.location.href;
-            trackPageEvent(currentUrl);
-        });
+    // Override pushState and replaceState to track page changes
+    function overrideHistoryMethods() {
+        var originalPushState = history.pushState;
+        var originalReplaceState = history.replaceState;
+
+        history.pushState = function (state, title, url) {
+            if (typeof url === 'string') {
+                trackPageEvent(url);
+            }
+            return originalPushState.apply(this, arguments);
+        };
+
+        history.replaceState = function (state, title, url) {
+            if (typeof url === 'string') {
+                trackPageEvent(url);
+            }
+            return originalReplaceState.apply(this, arguments);
+        };
     }
 
-    // Initialize Matomo, add the script, and set up the listener
+    // Initialize Matomo, add the script, and set up the listeners
     initializeMatomo();
     addMatomoScript();
-    setupPopstateListener();
+    overrideHistoryMethods();
 })();
